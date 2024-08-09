@@ -100,17 +100,54 @@ class ThreeApp {
         this.isFront = true;
         this.isExpanded = false; // To track if a mesh is expanded
         this.selectedMesh = null; // To keep track of the currently selected mesh
+        this.isClicked = false
 
         this.main = document.querySelector("main")
         this.button = document.querySelector('#back_btn');
 
-        // @@@
-        this.isClicked = false
 
 
         /**
          * Shader
          */
+        this.vertex = `
+            precision mediump float;
+            uniform float uProgress;
+            uniform float uRotation;
+            //uniform float uDistortion;
+
+            varying vec2 vUv;
+            varying vec2 vSize;
+            varying float vProgress;
+            varying vec4 vPosition;
+
+            void main() {
+                // 位置計算
+                vec3 newPosition = position + vec3(0.0, uProgress * 3.0, 0.0);
+                vProgress = uProgress;
+                vUv = uv;
+
+                // ディストーションエフェクト (前後の揺れを追加)
+                // float distortionEffect = sin(newPosition.y * 5.0 + uDistortion) * 0.1;
+                // newPosition.x += distortionEffect;
+                // newPosition.y += cos(newPosition.x * 5.0 + uDistortion) * 0.1;
+
+                // Y軸回転行列の計算
+                float cosRot = cos(uRotation);
+                float sinRot = sin(uRotation);
+
+                mat4 rotationMatrix = mat4(
+                    cosRot, 0.0, sinRot, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    -sinRot, 0.0, cosRot, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+
+                // 最終位置の計算
+                gl_Position = projectionMatrix * modelViewMatrix * rotationMatrix * vec4(newPosition, 1.0);
+            }
+        `;
+
         this.fragment = `
             precision mediump float;
 
@@ -161,45 +198,6 @@ class ThreeApp {
                     // 裏面の場合、テクスチャをgreenにする
                     gl_FragColor = vec4(0.0, 0.73, 0.58, 1.0);
                 }
-            }
-        `;
-
-
-        this.vertex = `
-            precision mediump float;
-            uniform float uProgress;
-            uniform float uRotation;
-            //uniform float uDistortion;
-
-            varying vec2 vUv;
-            varying vec2 vSize;
-            varying float vProgress;
-            varying vec4 vPosition;
-
-            void main() {
-                // 位置計算
-                vec3 newPosition = position + vec3(0.0, uProgress * 3.0, 0.0);
-                vProgress = uProgress;
-                vUv = uv;
-
-                // ディストーションエフェクト (前後の揺れを追加)
-                // float distortionEffect = sin(newPosition.y * 5.0 + uDistortion) * 0.1;
-                // newPosition.x += distortionEffect;
-                // newPosition.y += cos(newPosition.x * 5.0 + uDistortion) * 0.1;
-
-                // Y軸回転行列の計算
-                float cosRot = cos(uRotation);
-                float sinRot = sin(uRotation);
-
-                mat4 rotationMatrix = mat4(
-                    cosRot, 0.0, sinRot, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    -sinRot, 0.0, cosRot, 0.0,
-                    0.0, 0.0, 0.0, 1.0
-                );
-
-                // 最終位置の計算
-                gl_Position = projectionMatrix * modelViewMatrix * rotationMatrix * vec4(newPosition, 1.0);
             }
         `;
 
@@ -305,7 +303,6 @@ class ThreeApp {
                 });
                 const mesh = new THREE.Mesh(this.geometry, material);
 
-                // Set the position
                 mesh.position.set(0, 0, 0);
                 const { scaleX, scaleY } = this.calculateScales();
                 mesh.scale.set(scaleX, scaleY, 1);
@@ -341,11 +338,6 @@ class ThreeApp {
     async loadTextures() {
         const textureUrls = [
             './7.jpg',
-            // './images/3.jpg',
-            // './images/4.jpg',
-            // './images/5.jpg',
-            // './images/6.jpg',
-            // './images/7.jpg',
         ];
 
         try {
@@ -362,7 +354,6 @@ class ThreeApp {
      * Click event
      */
     onClick(event) {
-        // Only process mesh clicks if no mesh is currently expanded
         const mouse = new THREE.Vector2();
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -471,14 +462,14 @@ class ThreeApp {
      * Resize
      */
     calculateScales() {
-        const aspect = 1; // Assuming the original aspect ratio of the plane geometry
+        const aspect = 1;
         let scaleX, scaleY;
 
         if (this.width / this.height > aspect) {
-            scaleY = this.height / 2000; // Adjust divisor as needed
+            scaleY = this.height / 2000;
             scaleX = scaleY * aspect;
         } else {
-            scaleX = this.width / 2000; // Adjust divisor as needed
+            scaleX = this.width / 2000;
             scaleY = scaleX / aspect;
         }
 
@@ -496,7 +487,6 @@ class ThreeApp {
         this.renderer.setSize(this.width, this.height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-        // Update Meshes and Uniforms
         if (this.group && this.group.children.length > 0) {
             const { scaleX, scaleY } = this.calculateScales();
 
@@ -507,7 +497,6 @@ class ThreeApp {
 
                 mesh.scale.set(scaleX, scaleY, 1);
 
-                // Update shader uniforms
                 if (mesh.material.uniforms) {
                     mesh.material.uniforms.uPlaneResolution.value.set(this.width, this.height);
                     mesh.material.uniforms.uQuadSize.value.set(this.width, this.height);
