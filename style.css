@@ -216,4 +216,8 @@ Word Split Transition
         font-size: 100px;
         line-height: 110px;
     }
+
+    h3 {
+        line-height: 44px;
+    }
 }

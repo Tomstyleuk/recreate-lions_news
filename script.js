@@ -80,9 +80,6 @@ class ThreeApp {
     // raycaster
     raycaster;
 
-    // animation flags
-    isFront;
-
 
     /**
      * コンストラクタ
@@ -100,11 +97,10 @@ class ThreeApp {
         this.isFront = true;
         this.isExpanded = false; // To track if a mesh is expanded
         this.selectedMesh = null; // To keep track of the currently selected mesh
-        this.isClicked = false
+        this.isAnimating = false
 
         this.main = document.querySelector("main")
         this.button = document.querySelector('#back_btn');
-
 
 
         /**
@@ -112,39 +108,46 @@ class ThreeApp {
          */
         this.vertex = `
             precision mediump float;
-            uniform float uProgress;
-            uniform float uRotation;
-            //uniform float uDistortion;
+            // uniform float uRotation;
+            uniform float uTime;
+            uniform float uSpeed;
+            uniform bool uAnimating;
+
+            uniform float uRotationProgress; // 0 - 1
+            uniform float uWaveSpeed;
+            uniform float uWaveHeight;
 
             varying vec2 vUv;
             varying vec2 vSize;
-            varying float vProgress;
-            varying vec4 vPosition;
 
             void main() {
                 // 位置計算
-                vec3 newPosition = position + vec3(0.0, uProgress * 3.0, 0.0);
-                vProgress = uProgress;
+                vec3 newPosition = position + vec3(0.0);
                 vUv = uv;
 
-                // ディストーションエフェクト (前後の揺れを追加)
-                // float distortionEffect = sin(newPosition.y * 5.0 + uDistortion) * 0.1;
-                // newPosition.x += distortionEffect;
-                // newPosition.y += cos(newPosition.x * 5.0 + uDistortion) * 0.1;
+                if(uAnimating) {
+                    //　newPosition.x * 3.0 = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
+                    float wave = sin(newPosition.x * 3.0 + uTime + uWaveSpeed) * uWaveHeight * 4.0;
 
-                // Y軸回転行列の計算
-                float cosRot = cos(uRotation);
-                float sinRot = sin(uRotation);
+                    // 回転の進行に応じて0→1→0と変化する
+                    // これにより、回転の開始時と終了時に波が消え、半回転時に最大になる
+                    wave = wave * sin(3.14159 * uRotationProgress);
+                    newPosition.z += wave;
+                }
 
-                mat4 rotationMatrix = mat4(
-                    cosRot, 0.0, sinRot, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    -sinRot, 0.0, cosRot, 0.0,
-                    0.0, 0.0, 0.0, 1.0
-                );
+                // Y軸回転行列の計算 - remove this code later
+//                 float cosRot = cos(uRotation);
+//                 float sinRot = sin(uRotation);
+//
+//                 mat4 rotationMatrix = mat4(
+//                     cosRot, 0.0, sinRot, 0.0,
+//                     0.0, 1.0, 0.0, 0.0,
+//                     -sinRot, 0.0, cosRot, 0.0,
+//                     0.0, 0.0, 0.0, 1.0
+//                 );
 
                 // 最終位置の計算
-                gl_Position = projectionMatrix * modelViewMatrix * rotationMatrix * vec4(newPosition, 1.0);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
             }
         `;
 
@@ -153,13 +156,11 @@ class ThreeApp {
 
             uniform sampler2D uTexture;
             uniform vec2 uPlaneResolution;
-            uniform float uProgress;
             uniform vec2 uTextureSize;
             uniform vec2 uQuadSize;
 
             varying vec2 vUv;
             varying vec2 vSize;
-            varying vec4 vPosition;
 
             // texture object-fit cover effect
             vec2 getUV(vec2 uv, vec2 texureSize, vec2 planesize){
@@ -279,7 +280,7 @@ class ThreeApp {
          * Mesh
          */
         if (this.textures) {
-            this.geometry = new THREE.PlaneGeometry(1, 1.2, 100, 100);
+            this.geometry = new THREE.PlaneGeometry(1, 1.2, 150, 150);
             this.group = new THREE.Group()
 
             this.textures.forEach((texture, idx) => {
@@ -290,13 +291,12 @@ class ThreeApp {
                         uPlaneResolution: { value: new THREE.Vector2(this.width, this.height) },
                         uQuadSize: { value: new THREE.Vector2(this.wrapper.offsetWidth, this.wrapper.offsetHeight) },
                         uTextureSize: { value: new THREE.Vector2(texture.image.width, texture.image.height) },
-                        uCorners: { value: new THREE.Vector4(0, 0, 0, 0) },
-                        time: { value: 1.0 },
-                        uProgress: { value: 0 },
-                        uRotation: { value: 0 },
-                        uCorners: { value: new THREE.Vector4(0, 0, 0, 0) },
-                        uClicked: { value: false },
-                        uDistortion: { value: 0 }
+                        uSpeed: { value: 0 },
+                        uAnimating: { value: false },
+                        uTime: { value: 0.0 },
+                        uRotationProgress: { value: 0.0 },
+                        uWaveSpeed: { value: 2 },
+                        uWaveHeight: { value: 0.1 },
                     },
                     vertexShader: this.vertex,
                     fragmentShader: this.fragment
@@ -321,7 +321,7 @@ class ThreeApp {
         this.axesHelper = new THREE.AxesHelper(axesBarLength);
         // this.scene.add(this.axesHelper);
 
-        this.onResize(); // Call once to set initial size
+        this.onResize();
     }
 
 
@@ -369,8 +369,21 @@ class ThreeApp {
         }
     }
 
+
     expandMesh() {
         if (!this.selectedMesh || this.isExpanded) return;
+
+        const duration = '2.0';
+        const waveDelay = '0.2';
+
+        this.isAnimating = true
+
+        this.materials.forEach(mesh => {
+            mesh.material.uniforms.uAnimating.value = true;
+        });
+
+        const self = this;
+        const initialTimeValues = this.materials.map(mesh => mesh.material.uniforms.uTime.value);
 
         setTimeout(() => {
             this.main.classList.add('view')
@@ -381,31 +394,34 @@ class ThreeApp {
         this.tl.play();
 
         if (this.selectedMesh) {
-            this.isClicked = true;
-            this.tl.to(this.selectedMesh.material.uniforms.uRotation, {
-                value: -Math.PI,
-                duration: 2,
-                ease: 'cubic-bezier(0, 0.55, 0.45, 1)',
-                onUpdate: function () {
-                    console.log("uRotation:", this.selectedMesh.material.uniforms.uRotation.value);
-                    // this.selectedMesh.material.uniforms.uDistortion.value = Math.sin(this.tl.progress() * Math.PI) * 20.0;
-                }.bind(this),
-            }, '0.6')
+            this.tl
+                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                    value: 1,
+                    duration: duration,
+                    ease: 'power2.Out',
+                }, waveDelay)
+                .to(this.selectedMesh.rotation, {
+                    y: Math.PI,
+                    duration: duration,
+                    ease: 'power2.Out',
+                }, waveDelay)
                 .to(this.selectedMesh.scale, {
                     x: 5,
                     y: 5,
-                    duration: 2,
-                    ease: 'cubic-bezier(0, 0.55, 0.45, 1)',
+                    duration: duration,
+                    ease: 'power2.Out',
                     onStart: () => {
                         this.isFront = !this.isFront; // アニメーション開始時にisFrontを反転
                     },
                     onComplete: () => {
-                        this.isClicked = false;
                         this.isExpanded = true;
-                        // this.selectedMesh.material.uniforms.uDistortion.value = 0; // 回転終了時にディストーションをクリア
-                        console.log("Animation complete: isExpanded is", this.isExpanded);
+                        this.isAnimating = false
+                        self.materials.forEach(mesh => {
+                            mesh.material.uniforms.uAnimating.value = false;
+                            mesh.material.uniforms.uRotationProgress.value = 1;
+                        });
                     }
-                }, '0.6');
+                }, waveDelay);
         }
     }
 
@@ -418,43 +434,70 @@ class ThreeApp {
     resetMesh() {
         if (!this.selectedMesh || !this.isExpanded) return;
 
+        const duration = '2.0';
+        const waveDelay = '0.2';
+
         this.main.classList.remove('view');
         const { scaleX, scaleY } = this.calculateScales();
 
         this.tl.clear();
 
-        this.tl
-            .to(this.selectedMesh.scale, {
-                x: scaleX,
-                y: scaleY,
-                duration: 2.5,
-                ease: 'cubic-bezier(0.16, 1, 0.3, 1)',
-            }, "0.4")
-            .to(this.selectedMesh.material.uniforms.uRotation, {
-                value: 0,
-                duration: 2.5,
-                ease: 'cubic-bezier(0.16, 1, 0.3, 1)',
-                onUpdate: () => {
-                    // this.selectedMesh.material.uniforms.uDistortion.value = Math.sin(this.tl.progress() * Math.PI) * 20.0;
-                },
-                onComplete: () => {
-                    this.isExpanded = false;
-                    this.isFront = true;
-                    // this.selectedMesh.material.uniforms.uDistortion.value = 0; // 回転終了時にディストーションをクリア
-                    this.selectedMesh = null;
-                    console.log("After reset animation: isexpand is", this.isExpanded);
+        const self = this;
 
-                    const elements = document.querySelectorAll('.inview_fadein');
-                    elements.forEach(el => {
-                        gsap.set(el, {
-                            clearProps: "all" // clear all GSAP inline styles
+        this.isAnimating = true
+        this.materials.forEach(mesh => {
+            mesh.material.uniforms.uAnimating.value = true;
+        });
+
+        setTimeout(() => {
+            this.tl
+                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                    value: 0,
+                    duration: duration,
+                    ease: 'power2.Out',
+                }, waveDelay)
+                .to(this.selectedMesh.scale, {
+                    x: scaleX,
+                    y: scaleY,
+                    duration: duration,
+                    ease: 'power2.Out',
+                }, waveDelay)
+                .to(this.selectedMesh.rotation, {
+                    y: 0,
+                    duration: duration,
+                    ease: 'power2.Out',
+                    onComplete: () => {
+                        this.isExpanded = false;
+                        this.isFront = true;
+                        this.selectedMesh = null;
+                        self.materials.forEach(mesh => {
+                            mesh.material.uniforms.uAnimating.value = false;
+                            mesh.material.uniforms.uRotationProgress.value = 0;
                         });
+
+                        const elements = document.querySelectorAll('.inview_fadein');
+                        elements.forEach(el => {
+                            gsap.set(el, {
+                                clearProps: "all"
+                            });
+                        });
+                        this.isAnimating = false
+                    }
+                }, waveDelay)
+
+            this.tl.to(this.selectedMesh.material.uniforms.uTime, {
+                value: Math.PI * 2,
+                duration: duration + 0.4, // Slightly longer than the rotation
+                ease: 'linear',
+                onComplete: () => {
+                    self.materials.forEach(mesh => {
+                        mesh.material.uniforms.uTime.value = 0;
                     });
                 }
-            }, "0.4")
+            }, 0);
 
-        // Play the timeline
-        this.tl.play();
+            this.tl.play();
+        }, 1000);
     }
 
 
@@ -466,10 +509,10 @@ class ThreeApp {
         let scaleX, scaleY;
 
         if (this.width / this.height > aspect) {
-            scaleY = this.height / 2000;
+            scaleY = this.height / 1500;
             scaleX = scaleY * aspect;
         } else {
-            scaleX = this.width / 2000;
+            scaleX = this.width / 1500;
             scaleY = scaleX / aspect;
         }
 
@@ -510,6 +553,12 @@ class ThreeApp {
      * Render
      */
     render() {
+        if (this.isAnimating) {
+            this.materials.forEach((mesh) => {
+                mesh.material.uniforms.uTime.value += 0.015;
+            });
+        }
+
         requestAnimationFrame(this.render);
 
         this.renderer.render(this.scene, this.camera);
