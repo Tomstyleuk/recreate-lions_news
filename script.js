@@ -1,3 +1,10 @@
+/**
+ * 2つのメッシュに異なる画像を貼って、Group化する？
+ * ref - https://hofk.de/main/threejs/1TEST/SimpleDoubleSide(gl_FrontFacing).html
+ * https://discourse.threejs.org/t/different-materials-on-plane-side-a-and-side-b/58310/3
+ * https://discourse.threejs.org/t/how-to-have-different-colors-textures-on-bottom-and-top-side-of-a-plane/12644/7
+ */
+
 import * as THREE from './three.module.js'
 import initTextAnimation from './textAnimation.js';
 
@@ -121,13 +128,13 @@ class ThreeApp {
             varying vec2 vSize;
 
             void main() {
-                // 位置計算
+                // ワールド空間の位置計算
                 vec3 newPosition = position + vec3(0.0);
                 vUv = uv;
 
                 if(uAnimating) {
                     //　newPosition.x * 3.0 = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
-                    float wave = sin(newPosition.x * 3.0 + uTime + uWaveSpeed) * uWaveHeight * 4.0;
+                    float wave = sin(newPosition.x * 2.0 + uTime * uWaveSpeed * 2.3) * uWaveHeight;
 
                     // 回転の進行に応じて0→1→0と変化する
                     // これにより、回転の開始時と終了時に波が消え、半回転時に最大になる
@@ -136,17 +143,16 @@ class ThreeApp {
                 }
 
                 // Y軸回転行列の計算 - remove this code later
-//                 float cosRot = cos(uRotation);
-//                 float sinRot = sin(uRotation);
-//
-//                 mat4 rotationMatrix = mat4(
-//                     cosRot, 0.0, sinRot, 0.0,
-//                     0.0, 1.0, 0.0, 0.0,
-//                     -sinRot, 0.0, cosRot, 0.0,
-//                     0.0, 0.0, 0.0, 1.0
-//                 );
+                // float cosRot = cos(uRotation);
+                // float sinRot = sin(uRotation);
 
-                // 最終位置の計算
+                // mat4 rotationMatrix = mat4(
+                //     cosRot, 0.0, sinRot, 0.0,
+                //     0.0, 1.0, 0.0, 0.0,
+                //     -sinRot, 0.0, cosRot, 0.0,
+                //     0.0, 0.0, 0.0, 1.0
+                // );
+
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
             }
         `;
@@ -280,7 +286,7 @@ class ThreeApp {
          * Mesh
          */
         if (this.textures) {
-            this.geometry = new THREE.PlaneGeometry(1, 1.2, 150, 150);
+            this.geometry = new THREE.PlaneGeometry(1, 1.2, 200, 200);
             this.group = new THREE.Group()
 
             this.textures.forEach((texture, idx) => {
@@ -295,8 +301,8 @@ class ThreeApp {
                         uAnimating: { value: false },
                         uTime: { value: 0.0 },
                         uRotationProgress: { value: 0.0 },
-                        uWaveSpeed: { value: 2 },
-                        uWaveHeight: { value: 0.1 },
+                        uWaveSpeed: { value: 1 },
+                        uWaveHeight: { value: 0.5 },
                     },
                     vertexShader: this.vertex,
                     fragmentShader: this.fragment
@@ -373,7 +379,7 @@ class ThreeApp {
     expandMesh() {
         if (!this.selectedMesh || this.isExpanded) return;
 
-        const duration = '2.0';
+        const duration = '1.6';
         const waveDelay = '0.2';
 
         this.isAnimating = true
@@ -386,9 +392,9 @@ class ThreeApp {
         const initialTimeValues = this.materials.map(mesh => mesh.material.uniforms.uTime.value);
 
         setTimeout(() => {
-            this.main.classList.add('view')
             initTextAnimation();
-        }, 2100);
+            this.main.classList.add('view')
+        }, 1800);
 
         this.tl.clear();
         this.tl.play();
@@ -434,7 +440,7 @@ class ThreeApp {
     resetMesh() {
         if (!this.selectedMesh || !this.isExpanded) return;
 
-        const duration = '2.0';
+        const duration = '1.6';
         const waveDelay = '0.2';
 
         this.main.classList.remove('view');
@@ -451,21 +457,21 @@ class ThreeApp {
 
         setTimeout(() => {
             this.tl
-                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
-                    value: 0,
-                    duration: duration,
-                    ease: 'power2.Out',
-                }, waveDelay)
                 .to(this.selectedMesh.scale, {
                     x: scaleX,
                     y: scaleY,
                     duration: duration,
-                    ease: 'power2.Out',
+                    ease: 'ease',
                 }, waveDelay)
                 .to(this.selectedMesh.rotation, {
                     y: 0,
                     duration: duration,
-                    ease: 'power2.Out',
+                    ease: 'ease',
+                }, waveDelay)
+                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                    value: 0,
+                    duration: duration,
+                    ease: 'ease',
                     onComplete: () => {
                         this.isExpanded = false;
                         this.isFront = true;
@@ -483,11 +489,11 @@ class ThreeApp {
                         });
                         this.isAnimating = false
                     }
-                }, waveDelay)
+                }, '0.4')
 
             this.tl.to(this.selectedMesh.material.uniforms.uTime, {
                 value: Math.PI * 2,
-                duration: duration + 0.4, // Slightly longer than the rotation
+                duration: duration + 0.5, // Slightly longer than the rotation
                 ease: 'linear',
                 onComplete: () => {
                     self.materials.forEach(mesh => {
@@ -555,7 +561,7 @@ class ThreeApp {
     render() {
         if (this.isAnimating) {
             this.materials.forEach((mesh) => {
-                mesh.material.uniforms.uTime.value += 0.015;
+                mesh.material.uniforms.uTime.value += 0.025;
             });
         }
 
