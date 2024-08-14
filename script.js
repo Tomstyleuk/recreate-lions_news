@@ -133,8 +133,8 @@ class ThreeApp {
                 vUv = uv;
 
                 if(uAnimating) {
-                    //　newPosition.x * 3.0 = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
-                    float wave = sin(newPosition.x * 2.0 + uTime * uWaveSpeed * 2.3) * uWaveHeight;
+                    //　newPosition.x * XXX = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
+                    float wave = sin(-newPosition.x * 1.7 + uTime * uWaveSpeed * 1.2) * uWaveHeight;
 
                     // 回転の進行に応じて0→1→0と変化する
                     // これにより、回転の開始時と終了時に波が消え、半回転時に最大になる
@@ -302,7 +302,7 @@ class ThreeApp {
                         uTime: { value: 0.0 },
                         uRotationProgress: { value: 0.0 },
                         uWaveSpeed: { value: 1 },
-                        uWaveHeight: { value: 0.5 },
+                        uWaveHeight: { value: 0.3 },
                     },
                     vertexShader: this.vertex,
                     fragmentShader: this.fragment
@@ -379,8 +379,9 @@ class ThreeApp {
     expandMesh() {
         if (!this.selectedMesh || this.isExpanded) return;
 
-        const duration = '1.6';
-        const waveDelay = '0.2';
+        const rotationDuration = 1.8;
+        const scaleDuration = 2.2;
+        const totalDuration = rotationDuration + scaleDuration / 2; // 全体の所要時間
 
         this.isAnimating = true
 
@@ -389,33 +390,32 @@ class ThreeApp {
         });
 
         const self = this;
-        const initialTimeValues = this.materials.map(mesh => mesh.material.uniforms.uTime.value);
 
         setTimeout(() => {
             initTextAnimation();
             this.main.classList.add('view')
-        }, 1800);
+        }, totalDuration * 800);
 
         this.tl.clear();
         this.tl.play();
 
         if (this.selectedMesh) {
             this.tl
-                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
-                    value: 1,
-                    duration: duration,
-                    ease: 'power2.Out',
-                }, waveDelay)
                 .to(this.selectedMesh.rotation, {
                     y: Math.PI,
-                    duration: duration,
-                    ease: 'power2.Out',
-                }, waveDelay)
+                    duration: rotationDuration,
+                    ease: 'power3.inOut',
+                }, '0')
+                // .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                //     value: 1,
+                //     duration: rotationDuration,
+                //     ease: 'power3.inOut',
+                // }, '0')
                 .to(this.selectedMesh.scale, {
                     x: 5,
                     y: 5,
-                    duration: duration,
-                    ease: 'power2.Out',
+                    duration: scaleDuration,
+                    ease: 'power1.out',
                     onStart: () => {
                         this.isFront = !this.isFront; // アニメーション開始時にisFrontを反転
                     },
@@ -427,7 +427,7 @@ class ThreeApp {
                             mesh.material.uniforms.uRotationProgress.value = 1;
                         });
                     }
-                }, waveDelay);
+                }, `>-${scaleDuration / 2.2}`)
         }
     }
 
@@ -440,8 +440,10 @@ class ThreeApp {
     resetMesh() {
         if (!this.selectedMesh || !this.isExpanded) return;
 
-        const duration = '1.6';
-        const waveDelay = '0.2';
+        const rotationDuration = 1.8;
+        const scaleDuration = 1.7
+
+        const duration = 1.6;
 
         this.main.classList.remove('view');
         const { scaleX, scaleY } = this.calculateScales();
@@ -460,18 +462,13 @@ class ThreeApp {
                 .to(this.selectedMesh.scale, {
                     x: scaleX,
                     y: scaleY,
-                    duration: duration,
-                    ease: 'ease',
-                }, waveDelay)
+                    duration: scaleDuration,
+                    ease: 'power4.Out',
+                }, '0')
                 .to(this.selectedMesh.rotation, {
                     y: 0,
-                    duration: duration,
-                    ease: 'ease',
-                }, waveDelay)
-                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
-                    value: 0,
-                    duration: duration,
-                    ease: 'ease',
+                    duration: rotationDuration,
+                    ease: 'power3.inOut',
                     onComplete: () => {
                         this.isExpanded = false;
                         this.isFront = true;
@@ -489,18 +486,22 @@ class ThreeApp {
                         });
                         this.isAnimating = false
                     }
-                }, '0.4')
-
-            this.tl.to(this.selectedMesh.material.uniforms.uTime, {
-                value: Math.PI * 2,
-                duration: duration + 0.5, // Slightly longer than the rotation
-                ease: 'linear',
-                onComplete: () => {
-                    self.materials.forEach(mesh => {
-                        mesh.material.uniforms.uTime.value = 0;
-                    });
-                }
-            }, 0);
+                }, '0')
+                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                    value: 0,
+                    duration: rotationDuration,
+                    ease: 'power3.inOut',
+                }, '0.1')
+                .to(this.selectedMesh.material.uniforms.uTime, {
+                    value: Math.PI * 2,
+                    duration: duration + 1.0, //少し長く
+                    ease: 'linear',
+                    onComplete: () => {
+                        self.materials.forEach(mesh => {
+                            mesh.material.uniforms.uTime.value = 0;
+                        });
+                    }
+                }, '0');
 
             this.tl.play();
         }, 1000);
