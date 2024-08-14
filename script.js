@@ -134,7 +134,7 @@ class ThreeApp {
 
                 if(uAnimating) {
                     //　newPosition.x * XXX = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
-                    float wave = sin(-newPosition.x * 1.7 + uTime * uWaveSpeed * 1.2) * uWaveHeight;
+                    float wave = sin(-newPosition.x * 1.5 + uTime * uWaveSpeed * 1.) * uWaveHeight;
 
                     // 回転の進行に応じて0→1→0と変化する
                     // これにより、回転の開始時と終了時に波が消え、半回転時に最大になる
@@ -415,7 +415,7 @@ class ThreeApp {
                     x: 5,
                     y: 5,
                     duration: scaleDuration,
-                    ease: 'power1.out',
+                    ease: 'power4.out',
                     onStart: () => {
                         this.isFront = !this.isFront; // アニメーション開始時にisFrontを反転
                     },
@@ -427,7 +427,7 @@ class ThreeApp {
                             mesh.material.uniforms.uRotationProgress.value = 1;
                         });
                     }
-                }, `>-${scaleDuration / 2.2}`)
+                }, `${scaleDuration / 2.4}`)
         }
     }
 
@@ -463,12 +463,17 @@ class ThreeApp {
                     x: scaleX,
                     y: scaleY,
                     duration: scaleDuration,
-                    ease: 'power4.Out',
+                    ease: 'power3.inOut',
                 }, '0')
                 .to(this.selectedMesh.rotation, {
                     y: 0,
                     duration: rotationDuration,
                     ease: 'power3.inOut',
+                }, '0')
+                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
+                    value: 0,
+                    duration: rotationDuration,
+                    ease: 'ease',
                     onComplete: () => {
                         this.isExpanded = false;
                         this.isFront = true;
@@ -486,23 +491,18 @@ class ThreeApp {
                         });
                         this.isAnimating = false
                     }
-                }, '0')
-                .to(this.selectedMesh.material.uniforms.uRotationProgress, {
-                    value: 0,
-                    duration: rotationDuration,
-                    ease: 'power3.inOut',
-                }, '0.1')
-                .to(this.selectedMesh.material.uniforms.uTime, {
-                    value: Math.PI * 2,
-                    duration: duration + 1.0, //少し長く
-                    ease: 'linear',
-                    onComplete: () => {
-                        self.materials.forEach(mesh => {
-                            mesh.material.uniforms.uTime.value = 0;
-                        });
-                    }
-                }, '0');
+                }, '0.4')
 
+            this.tl.to(this.selectedMesh.material.uniforms.uTime, {
+                value: Math.PI * 2,
+                duration: duration + 0.5, //少し長く
+                ease: 'linear',
+                onComplete: () => {
+                    self.materials.forEach(mesh => {
+                        mesh.material.uniforms.uTime.value = 0;
+                    });
+                }
+            }, '1.2');
             this.tl.play();
         }, 1000);
     }
