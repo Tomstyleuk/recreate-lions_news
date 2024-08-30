@@ -17,6 +17,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     app.render();
 }, false);
 
+
 class ThreeApp {
     /**
      * カメラ定義のための定数
@@ -134,24 +135,13 @@ class ThreeApp {
 
                 if(uAnimating) {
                     //　newPosition.x * XXX = 波の周期, uWaveSpeed = 波の速度, uWaveHeight = 波の高さ
-                    float wave = sin(-newPosition.x * 1.5 + uTime * uWaveSpeed * 1.) * uWaveHeight;
+                    float wave = sin(-newPosition.x * 3.0 + uTime * uWaveSpeed * 3.) * uWaveHeight * 1.2;
 
                     // 回転の進行に応じて0→1→0と変化する
                     // これにより、回転の開始時と終了時に波が消え、半回転時に最大になる
                     wave = wave * sin(3.14159 * uRotationProgress);
                     newPosition.z += wave;
                 }
-
-                // Y軸回転行列の計算 - remove this code later
-                // float cosRot = cos(uRotation);
-                // float sinRot = sin(uRotation);
-
-                // mat4 rotationMatrix = mat4(
-                //     cosRot, 0.0, sinRot, 0.0,
-                //     0.0, 1.0, 0.0, 0.0,
-                //     -sinRot, 0.0, cosRot, 0.0,
-                //     0.0, 0.0, 0.0, 1.0
-                // );
 
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
             }
@@ -203,7 +193,7 @@ class ThreeApp {
                     gl_FragColor = textureColor;
                 } else {
                     // 裏面の場合、テクスチャをgreenにする
-                    gl_FragColor = vec4(0.0, 0.73, 0.58, 1.0);
+                    gl_FragColor = vec4(0.0, 0.53, 0.58, 1.0);
                 }
             }
         `;
@@ -302,7 +292,7 @@ class ThreeApp {
                         uTime: { value: 0.0 },
                         uRotationProgress: { value: 0.0 },
                         uWaveSpeed: { value: 1 },
-                        uWaveHeight: { value: 0.3 },
+                        uWaveHeight: { value: 0.1 },
                     },
                     vertexShader: this.vertex,
                     fragmentShader: this.fragment
@@ -343,7 +333,7 @@ class ThreeApp {
 
     async loadTextures() {
         const textureUrls = [
-            './7.jpg',
+            './img3.png',
         ];
 
         try {
@@ -415,7 +405,7 @@ class ThreeApp {
                     x: 5,
                     y: 5,
                     duration: scaleDuration,
-                    ease: 'power4.out',
+                    ease: 'power2.out',
                     onStart: () => {
                         this.isFront = !this.isFront; // アニメーション開始時にisFrontを反転
                     },
@@ -440,10 +430,10 @@ class ThreeApp {
     resetMesh() {
         if (!this.selectedMesh || !this.isExpanded) return;
 
-        const rotationDuration = 1.8;
-        const scaleDuration = 1.7
+        const rotationDuration = 2.0;
+        const scaleDuration = 2.0
 
-        const duration = 1.6;
+        const duration = 2.2;
 
         this.main.classList.remove('view');
         const { scaleX, scaleY } = this.calculateScales();
@@ -472,7 +462,7 @@ class ThreeApp {
                 }, '0')
                 .to(this.selectedMesh.material.uniforms.uRotationProgress, {
                     value: 0,
-                    duration: rotationDuration,
+                    duration: rotationDuration + 0.2,
                     ease: 'ease',
                     onComplete: () => {
                         this.isExpanded = false;
@@ -491,18 +481,19 @@ class ThreeApp {
                         });
                         this.isAnimating = false
                     }
-                }, '0.4')
+                }, '0.8')
 
             this.tl.to(this.selectedMesh.material.uniforms.uTime, {
-                value: Math.PI * 2,
-                duration: duration + 0.5, //少し長く
-                ease: 'linear',
+                value: Math.PI * 2, // uTime value 0 to 2 PI(wave 1周期)
+                duration: duration, //少し長く
+                ease: 'power2.inOut',
                 onComplete: () => {
                     self.materials.forEach(mesh => {
                         mesh.material.uniforms.uTime.value = 0;
                     });
                 }
-            }, '1.2');
+            }, '1.0');
+            // }, '0');
             this.tl.play();
         }, 1000);
     }
@@ -516,10 +507,10 @@ class ThreeApp {
         let scaleX, scaleY;
 
         if (this.width / this.height > aspect) {
-            scaleY = this.height / 1500;
+            scaleY = this.height / 1900;
             scaleX = scaleY * aspect;
         } else {
-            scaleX = this.width / 1500;
+            scaleX = this.width / 1900;
             scaleY = scaleX / aspect;
         }
 
