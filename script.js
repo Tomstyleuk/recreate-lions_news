@@ -108,6 +108,7 @@ class ThreeApp {
         this.isAnimating = false
 
         this.main = document.querySelector("main")
+        this.infoContainer = document.querySelector(".info_container")
         this.button = document.querySelector('#back_btn');
 
 
@@ -373,6 +374,7 @@ class ThreeApp {
         const scaleDuration = 2.2;
         const totalDuration = rotationDuration + scaleDuration / 2; // 全体の所要時間
 
+        this.infoContainer.classList.add('hide')
         this.isAnimating = true
 
         this.materials.forEach(mesh => {
@@ -491,6 +493,8 @@ class ThreeApp {
                     self.materials.forEach(mesh => {
                         mesh.material.uniforms.uTime.value = 0;
                     });
+
+                    this.infoContainer.classList.remove('hide')
                 }
             }, '1.0');
             // }, '0');

@@ -105,7 +105,7 @@ section {
 }
 
 .detail_descr {
-    width: 94%;
+    width: 90%;
     max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
@@ -136,6 +136,30 @@ p {
     object-fit: cover;
 }
 
+.info_container {
+    opacity: 1;
+    visibility: visible;
+    color: whitesmoke;
+    position: absolute;
+    bottom: 10%;
+    left: 4%;
+    z-index: 2;
+    max-width: 350px;
+    transition: all 0.6s ease-in-out;
+}
+
+.info_container.hide {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.info_container p {
+    line-height: 30px;
+}
+
+.info_container a {
+    display: block;
+}
 
 /*
 Word Split Transition
@@ -219,5 +243,13 @@ Word Split Transition
 
     h3 {
         line-height: 44px;
+    }
+
+    .info_container h1 {
+        font-size: 22px;
+    }
+
+    .info_container p {
+        font-size: 18px;
     }
 }
